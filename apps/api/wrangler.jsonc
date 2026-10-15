@@ -9,5 +9,11 @@
   // Locally they come from .dev.vars.
   "vars": {
     "YOUTUBE_SYNC_START_DATE": "2024-10-01"
+  },
+  // The website (apps/web, built with `npm run build:web`) is served from the same Worker:
+  // files are served directly, every other non-/api path gets index.html (see src/index.ts)
+  "assets": {
+    "directory": "../web/dist",
+    "binding": "ASSETS"
   }
 }

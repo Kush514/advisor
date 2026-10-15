@@ -15,6 +15,8 @@ export interface Env {
   AMAZON_CREATORS_CLIENT_ID?: string;
   AMAZON_CREATORS_CLIENT_SECRET?: string;
   AMAZON_CREATORS_PARTNER_TAG?: string;
+  // The built website (see wrangler.jsonc "assets")
+  ASSETS?: Fetcher;
 }
 
 // Questions kept in the database but not asked to users (e.g. brand preference)
@@ -23,6 +25,14 @@ const HIDDEN_QUESTION_KEYS = ['brand'];
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
+
+    // The website is served by this same Worker (wrangler.jsonc "assets"). Existing files are
+    // served before this code runs; any other non-API path (e.g. /ask) is a page of the React app.
+    if (!url.pathname.startsWith('/api/') && env.ASSETS) {
+      const asset = await env.ASSETS.fetch(request);
+      if (asset.status !== 404) return asset;
+      return env.ASSETS.fetch(new Request(new URL('/index.html', url), request));
+    }
 
     // Strict CORS headers
     const origin = request.headers.get('Origin') || '';
