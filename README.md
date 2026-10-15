@@ -33,6 +33,18 @@ npm run dev:api
 npm run build
 ```
 
+## Deployment
+
+Live at **https://vm-one-api.vmone-advisor.workers.dev**: one Cloudflare Worker (`apps/api`) serves
+both the API (`/api/*`) and the website (`apps/web/dist`, via Workers static assets). The database is
+Supabase.
+
+`.github/workflows/deploy.yml` redeploys automatically on every push to `main` that touches the website,
+API or shared code (typecheck → build → `wrangler deploy` → live smoke test). It uses the
+`CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` repository secrets. Worker secrets (Supabase, Amazon,
+admin key) live on Cloudflare and are kept across deploys. Manual deploy: `npm run build:shared &&
+npm run build:web && cd apps/api && npx wrangler deploy`.
+
 ## Automatic sync
 
 `.github/workflows/auto-sync.yml` keeps the product data up to date with no manual steps:

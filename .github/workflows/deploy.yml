@@ -1,0 +1,56 @@
+name: Deploy site & API
+
+# Every push to main that changes the website, the API or shared code rebuilds the site and deploys
+# both to Cloudflare (https://vm-one-api.vmone-advisor.workers.dev). Data updates don't need this:
+# the auto-sync workflow writes them straight to the database.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/web/**'
+      - 'apps/api/src/**'
+      - 'apps/api/wrangler.jsonc'
+      - 'apps/api/package.json'
+      - 'packages/shared/**'
+      - 'package-lock.json'
+      - '.github/workflows/deploy.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build:shared
+
+      # Stop before deploying if either app has type errors
+      - name: Typecheck API
+        run: npm run typecheck -w @vmone/api
+      - name: Build website
+        run: npm run build:web
+
+      - name: Deploy to Cloudflare
+        working-directory: apps/api
+        run: npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Check the live site
+        run: |
+          sleep 5
+          curl -fsS https://vm-one-api.vmone-advisor.workers.dev/api/health
+          curl -fsS https://vm-one-api.vmone-advisor.workers.dev/ask | grep -q 'id="root"'
+          curl -fsS -X POST -H 'Content-Type: application/json' -d '{"answers":{}}' \
+            https://vm-one-api.vmone-advisor.workers.dev/api/categories/tv/questions | grep -q '"ok":true'
+          echo "Live site OK"
