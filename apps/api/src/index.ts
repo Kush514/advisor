@@ -31,7 +31,9 @@ export default {
     if (!url.pathname.startsWith('/api/') && env.ASSETS) {
       const asset = await env.ASSETS.fetch(request);
       if (asset.status !== 404) return asset;
-      return env.ASSETS.fetch(new Request(new URL('/index.html', url), request));
+      // Ask for "/" (not "/index.html", which Cloudflare answers with a redirect to "/", sending the
+      // browser to the home page) so the browser stays on /ask and the React app shows that page
+      return env.ASSETS.fetch(new Request(new URL('/', url), request));
     }
 
     // Strict CORS headers
