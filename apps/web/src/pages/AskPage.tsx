@@ -1,3 +1,4 @@
+import { apiUrl } from '../lib/api';
 import { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, CircleAlert, RotateCcw } from 'lucide-react';
@@ -37,7 +38,7 @@ export default function AskPage() {
   // Load categories if IDLE
   useEffect(() => {
     if (state.status === 'IDLE' && categories.length === 0) {
-      fetch('/api/categories')
+      fetch(apiUrl('/api/categories'))
         .then(r => r.json())
         .then(data => {
           if (data.ok) setCategories(data.categories);
@@ -55,7 +56,7 @@ export default function AskPage() {
       const ac = new AbortController();
       abortControllerRef.current = ac;
 
-      fetch(`/api/categories/${state.categorySlug}/questions`, { signal: ac.signal })
+      fetch(apiUrl(`/api/categories/${state.categorySlug}/questions`), { signal: ac.signal })
         .then(r => r.json())
         .then(data => {
           if (!data.ok) throw new Error(data.error || 'Failed to load questions');
@@ -106,7 +107,7 @@ export default function AskPage() {
     if (advanceTimer.current) window.clearTimeout(advanceTimer.current);
     const requestId = ++refreshCounter.current;
     const started = Date.now();
-    fetch(`/api/categories/${slug}/questions`, {
+    fetch(apiUrl(`/api/categories/${slug}/questions`), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ answers })
@@ -150,7 +151,7 @@ export default function AskPage() {
   const submitAnswers = () => {
     setState(prev => ({ ...prev, status: 'SUBMITTING', error: null }));
 
-    fetch('/api/ask', {
+    fetch(apiUrl('/api/ask'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

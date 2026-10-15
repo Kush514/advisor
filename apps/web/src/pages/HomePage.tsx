@@ -1,3 +1,4 @@
+import { apiUrl } from '../lib/api';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -16,7 +17,7 @@ export default function HomePage() {
   const [categories, setCategories] = useState<Category[]>([]);
 
   useEffect(() => {
-    fetch('/api/categories')
+    fetch(apiUrl('/api/categories'))
       .then(r => r.json())
       .then(d => d.ok && setCategories(d.categories))
       .catch(() => {});
