@@ -95,7 +95,7 @@ export default {
       const authHeader = request.headers.get('Authorization');
       const expectedToken = env.ADMIN_SYNC_SECRET?.trim();
       if (!expectedToken || authHeader !== `Bearer ${expectedToken}`) {
-        return new Response(JSON.stringify({ ok: false, error: 'Unauthorized', debug: { received: authHeader, expected: `Bearer ${expectedToken}` } }), {
+        return new Response(JSON.stringify({ ok: false, error: 'Unauthorized' }), {
           status: 401,
           headers: { 'Content-Type': 'application/json', ...corsHeaders }
         });
