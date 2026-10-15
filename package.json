@@ -13,5 +13,10 @@
     "build:shared": "npm run build -w @vmone/shared",
     "build": "npm run build:shared && npm run build:web && npm run build:api",
     "typecheck": "npm run typecheck --workspaces --if-present"
+  },
+  "dependencies": {
+    "dotenv": "^18.0.5",
+    "pdf-parse": "^1.1.1",
+    "pdfjs-dist": "^2.16.105"
   }
 }

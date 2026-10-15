@@ -1,0 +1,56 @@
+name: VM One auto-sync
+
+# Keeps the Product Advisor up to date with the VM One YouTube channel, with nobody running scripts.
+#   Every 4 hours: if a new video is uploaded, its product links become products (name, specs,
+#                  category, VM One's original Amazon link), then prices/stock and budget ranges update.
+#   Once a day:    prices, stock and budget ranges are refreshed even without a new video.
+# See apps/api/scripts/auto-sync.ts.
+on:
+  schedule:
+    - cron: '15 */4 * * *'   # check for new videos (every 4 hours)
+    - cron: '30 0 * * *'     # daily price & stock refresh (06:00 IST)
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'What to run'
+        type: choice
+        default: check
+        options:
+          - check     # new videos only
+          - refresh   # new videos + prices/stock
+          - force     # full pipeline even without a new video
+
+concurrency:
+  group: auto-sync
+  cancel-in-progress: false   # never run two syncs at once
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run build:shared
+
+      - name: Run auto-sync
+        working-directory: apps/api
+        run: |
+          ARGS=""
+          if [ "${{ github.event.schedule }}" = "30 0 * * *" ] || [ "${{ inputs.mode }}" = "refresh" ]; then ARGS="--refresh"; fi
+          if [ "${{ inputs.mode }}" = "force" ]; then ARGS="--force --refresh"; fi
+          npx --yes tsx scripts/auto-sync.ts $ARGS
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          AMAZON_CREATORS_CLIENT_ID: ${{ secrets.AMAZON_CREATORS_CLIENT_ID }}
+          AMAZON_CREATORS_CLIENT_SECRET: ${{ secrets.AMAZON_CREATORS_CLIENT_SECRET }}
+          AMAZON_CREATORS_PARTNER_TAG: ${{ secrets.AMAZON_CREATORS_PARTNER_TAG }}
+          AMAZON_CREATORS_ENDPOINT: ${{ secrets.AMAZON_CREATORS_ENDPOINT }}
+          YOUTUBE_SYNC_START_DATE: '2024-10-01'
