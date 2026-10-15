@@ -1,7 +1,7 @@
 import { FinderProduct } from '@vmone/shared';
 import { Check, CirclePlay } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { categoryMeta, formatPrice, priceFreshness } from '../../lib/categories';
+import { categoryMeta } from '../../lib/categories';
 import { friendlyReasons, AnswerLabels } from '../../lib/reasons';
 import BuyButtons from './BuyButtons';
 
@@ -14,7 +14,6 @@ interface FinderResultCardProps {
 export default function FinderResultCard({ product, labels }: FinderResultCardProps) {
   const displayName = product.name || `${product.brand || ''} ${product.model || ''}`.trim() || 'Recommended product';
   const { icon: Icon } = categoryMeta(product.category);
-  const price = formatPrice(product.price.amount);
   const reasons = friendlyReasons(product, labels);
   const video = product.vmOneContent?.classification !== 'NO_RELEVANT_CONTENT' ? product.vmOneContent?.video : null;
   const isExactReview = product.vmOneContent?.classification === 'EXACT_PRODUCT';
@@ -57,17 +56,9 @@ export default function FinderResultCard({ product, labels }: FinderResultCardPr
             </div>
           )}
 
-          <div className="mt-8 flex flex-col gap-5 border-t border-cream-200 pt-6 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              {price ? (
-                <>
-                  <p className="text-sm text-ink-400">Price on Amazon · {priceFreshness(product.price)}</p>
-                  <p className="font-serif text-4xl font-medium text-ink">{price}</p>
-                </>
-              ) : (
-                <p className="text-sm text-ink-400">See today's price on the store</p>
-              )}
-            </div>
+          {/* Prices are checked live in the background (budget + stock) but not shown */}
+          <div className="mt-8 flex flex-col gap-5 border-t border-cream-200 pt-6 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm text-ink-400">{product.price.live ? "In stock on Amazon right now" : ""}</p>
             <BuyButtons product={product} />
           </div>
         </div>

@@ -38,16 +38,3 @@ export function categoryMeta(slug: string | null | undefined): CategoryMeta {
 
 // Popular categories shown first on the home page
 export const FEATURED = ['tv', 'air-conditioner', 'refrigerators', 'washing-machine', 'soundbars', 'water-purifier', 'air-purifier', 'geyser'];
-
-export function formatPrice(amount: number | null | undefined): string | null {
-  return amount == null ? null : `₹${amount.toLocaleString('en-IN')}`;
-}
-
-/** "checked 4:12 pm" for a live Amazon price, otherwise a note that the saved price may be out of date. */
-export function priceFreshness(price: { live?: boolean; checkedAt?: string | null }): string {
-  if (price.live && price.checkedAt) {
-    const time = new Date(price.checkedAt).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' });
-    return `checked ${time}`;
-  }
-  return 'may have changed';
-}

@@ -1,14 +1,13 @@
 import { motion } from 'framer-motion';
 import { Check, CirclePlay } from 'lucide-react';
 import { FinderProduct } from '@vmone/shared';
-import { categoryMeta, formatPrice, priceFreshness } from '../../lib/categories';
+import { categoryMeta } from '../../lib/categories';
 import { friendlyReasons, AnswerLabels } from '../../lib/reasons';
 import BuyButtons from './BuyButtons';
 
 export default function ProductCard({ product, labels }: { product: FinderProduct; labels?: AnswerLabels }) {
   const displayName = product.name || `${product.brand || ''} ${product.model || ''}`.trim() || 'Recommended product';
   const { icon: Icon } = categoryMeta(product.category);
-  const price = formatPrice(product.price.amount);
   const reasons = friendlyReasons(product, labels).slice(0, 2);
   const video = product.vmOneContent?.classification === 'EXACT_PRODUCT' ? product.vmOneContent.video : null;
 
@@ -39,10 +38,7 @@ export default function ProductCard({ product, labels }: { product: FinderProduc
 
       <div className="mt-auto pt-5">
         <div className="mb-4 flex items-center justify-between">
-          <span>
-            <span className="block font-serif text-2xl text-ink">{price || <span className="font-sans text-sm text-ink-400">Price on store</span>}</span>
-            {price && <span className="block text-xs text-ink-400">Amazon · {priceFreshness(product.price)}</span>}
-          </span>
+          <span className="text-sm text-ink-400">{product.price.live ? "In stock on Amazon" : ""}</span>
           {video?.youtubeUrl && (
             <a href={video.youtubeUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-sm font-semibold text-ink-500 hover:text-primary">
               <CirclePlay className="h-4 w-4 text-primary" /> Review

@@ -416,7 +416,7 @@ export default function AskPage() {
               )}
 
               <p className="mt-12 text-center text-xs text-ink-400">
-                Prices are from Amazon and can change. Some links are affiliate links that support VM One at no extra cost to you.
+                See today's price on Amazon. Some links are affiliate links that support VM One at no extra cost to you.
               </p>
             </>
           )}
