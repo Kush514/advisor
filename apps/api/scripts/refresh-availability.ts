@@ -63,6 +63,23 @@ async function callApi(token: string, op: 'getItems' | 'searchItems', body: obje
   throw new Error(`${op} failed after retries`);
 }
 
+/**
+ * Why Amazon left ASINs out of a GetItems reply:
+ *   API_BLOCKED   "ItemNotAccessible": the listing may well be live, but Amazon does not expose it to the
+ *                 affiliate API, so we cannot get its price or stock (product stays hidden)
+ *   INVALID_ASIN  "InvalidParameterValue": the ASIN itself is wrong or no longer exists
+ * Anything else not returned is NOT_FOUND.
+ */
+export function missingReasons(data: any): Map<string, string> {
+  const out = new Map<string, string>();
+  for (const e of data?.errors || []) {
+    const asin = String(e.message || '').match(/ItemId\s+([A-Z0-9]{10})/i)?.[1]?.toUpperCase();
+    if (!asin) continue;
+    out.set(asin, e.code === 'ItemNotAccessible' ? 'API_BLOCKED' : e.code === 'InvalidParameterValue' ? 'INVALID_ASIN' : 'NOT_FOUND');
+  }
+  return out;
+}
+
 function toItem(it: any): Item {
   const listing = it.offersV2?.listings?.[0];
   return {
@@ -120,7 +137,9 @@ async function run() {
     const batch = asins.slice(i, i + 10);
     const data = await callApi(token, 'getItems', { itemIds: batch, itemIdType: 'ASIN', resources: ['itemInfo.title', 'offersV2.listings.availability', 'offersV2.listings.price'] });
     for (const it of data.itemsResult?.items || []) items.set(it.asin, toItem(it));
-    for (const a of batch) if (!items.has(a)) items.set(a, { asin: a, availability: 'NOT_FOUND', price: null, title: '' });
+    // Amazon says why an ASIN was not returned; "not accessible" does NOT mean removed
+    const reasons = missingReasons(data);
+    for (const a of batch) if (!items.has(a)) items.set(a, { asin: a, availability: reasons.get(a) || 'NOT_FOUND', price: null, title: '' });
     await sleep(1100);
   }
 

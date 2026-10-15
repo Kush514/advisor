@@ -20,6 +20,8 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
 // Pause between products to stay inside the Gemini rate limit (override with GEMINI_DELAY_MS)
 const GEMINI_DELAY_MS = Number(process.env.GEMINI_DELAY_MS || 4500);
+// Pause after every Amazon call (Creators API rate limit is about 1 request per second)
+const AMAZON_DELAY_MS = 1100;
 
 // Extract ASIN from standard Amazon URL
 function extractASIN(url: string): string | null {
@@ -94,6 +96,10 @@ async function fetchFromAmazonAPI(accessToken: string, asin: string, brandStr: s
     throw new Error('TOKEN_EXPIRED');
   }
 
+  if (response.status === 429) {
+    throw new Error('THROTTLED');
+  }
+
   if (!response.ok) {
     const errText = await response.text();
     console.error(`Amazon API Error details:`, errText);
@@ -103,7 +109,11 @@ async function fetchFromAmazonAPI(accessToken: string, asin: string, brandStr: s
   const data = await response.json();
   
   const item = data.itemsResult?.items?.[0] || data.searchResult?.items?.[0] || data.items?.[0];
-  if (!item) return null;
+  if (!item) {
+    // "ItemNotAccessible" means Amazon won't expose the listing to the API (it may still be live)
+    const code = data.errors?.[0]?.code;
+    return { missing: code === 'ItemNotAccessible' ? 'API_BLOCKED' : code === 'InvalidParameterValue' ? 'INVALID_ASIN' : 'NOT_FOUND' } as any;
+  }
 
   return {
     title: item.itemInfo?.title?.displayValue || '',
@@ -167,7 +177,7 @@ async function run() {
     const { data, error } = await supabase
       .from('products')
       .select(`
-        id, name, brand, model, status, recommendable,
+        id, name, brand, model, status, recommendable, amazon_availability,
         categories (slug),
         product_links (id, amazon_url, asin, amazon_link_source)
       `)
@@ -212,8 +222,13 @@ async function run() {
   // 'model' spec, which used to make these products look finished and left their names uncleaned.
   const finishedProductIds = new Set(allSpecs.filter(s => s.spec_key !== 'model').map(s => s.product_id));
   
-  const productsToSync = products.filter(p => !finishedProductIds.has(p.id));
-  console.log(`Skipping ${finishedProductIds.size} already synced products.`);
+  // Products the daily refresh found Amazon won't share (API_BLOCKED) or doesn't have are not
+  // re-asked every run; the daily refresh re-checks them, and once Amazon returns one again it is
+  // cleaned on the next run.
+  const UNAVAILABLE_ON_API = ['API_BLOCKED', 'INVALID_ASIN', 'NOT_FOUND'];
+  const unavailable = products.filter(p => !finishedProductIds.has(p.id) && UNAVAILABLE_ON_API.includes(p.amazon_availability));
+  const productsToSync = products.filter(p => !finishedProductIds.has(p.id) && !UNAVAILABLE_ON_API.includes(p.amazon_availability));
+  console.log(`Skipping ${finishedProductIds.size} already synced products and ${unavailable.length} that Amazon's API does not return (re-checked daily).`);
   console.log(`Resuming sync for the remaining ${productsToSync.length} products...`);
 
   try {
@@ -240,13 +255,24 @@ async function run() {
              console.log('🔄 Amazon Token expired! Fetching a new one...');
              accessToken = await getAmazonAccessToken();
              amazonData = await fetchFromAmazonAPI(accessToken, asin || '', product.brand || '', product.model || '');
+          } else if (e.message === 'THROTTLED') {
+             console.log('⏳ Amazon asked us to slow down, retrying in 5 seconds...');
+             await new Promise(r => setTimeout(r, 5000));
+             amazonData = await fetchFromAmazonAPI(accessToken, asin || '', product.brand || '', product.model || '');
           } else {
              throw e;
           }
         }
-      
-      if (!amazonData) {
-        console.log(`❌ No data found on Amazon for this product.`);
+      // Space out Amazon calls so a run of products without data does not trigger throttling
+      await new Promise(r => setTimeout(r, AMAZON_DELAY_MS));
+
+      if (!amazonData || amazonData.missing) {
+        const why: Record<string, string> = {
+          API_BLOCKED: '⛔ Amazon does not share this product through its API (listing may still be live) - skipped.',
+          INVALID_ASIN: '❌ Amazon says this ASIN is invalid - skipped.',
+          NOT_FOUND: '❌ Not found on Amazon - skipped.'
+        };
+        console.log(why[amazonData?.missing || 'NOT_FOUND']);
         continue;
       }
 

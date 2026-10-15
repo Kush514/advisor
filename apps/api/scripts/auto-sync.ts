@@ -77,6 +77,8 @@ async function main() {
 
   run('refresh-availability.ts --apply', 'Prices, stock, and which products are shown');
   run('rebuild-price-brackets.ts --apply', 'Budget ranges');
+  // Review list of products Amazon's API won't return (uploaded as a download by the GitHub workflow)
+  run('export-api-blocked.ts', 'Review list: products Amazon does not share');
 
   console.log(`\nDone. ${fullRun ? `Processed ${newVideos.length} new video(s).` : 'Prices and stock refreshed.'}`);
 }

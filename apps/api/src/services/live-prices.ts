@@ -73,8 +73,14 @@ async function fetchBatch(env: AmazonEnv, accessToken: string, asins: string[]):
       checkedAt
     });
   }
-  // An ASIN Amazon did not return at all has been removed
-  for (const a of asins) if (!out.has(a)) out.set(a, { price: null, availability: 'NOT_FOUND', checkedAt });
+  // ASINs Amazon did not return: "ItemNotAccessible" means the API won't expose it (the listing may
+  // still be live), "InvalidParameterValue" means the ASIN is wrong. Either way it can't be shown.
+  const reasons = new Map<string, string>();
+  for (const e of data.errors || []) {
+    const asin = String(e.message || '').match(/ItemId\s+([A-Z0-9]{10})/i)?.[1]?.toUpperCase();
+    if (asin) reasons.set(asin, e.code === 'ItemNotAccessible' ? 'API_BLOCKED' : e.code === 'InvalidParameterValue' ? 'INVALID_ASIN' : 'NOT_FOUND');
+  }
+  for (const a of asins) if (!out.has(a)) out.set(a, { price: null, availability: reasons.get(a) || 'NOT_FOUND', checkedAt });
   return out;
 }
 

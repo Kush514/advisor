@@ -40,3 +40,4 @@ apps/api/amazon-availability.json
 apps/api/price-brackets-backup-*.json
 apps/api/_*.mts
 apps/api/_*.mjs
+apps/api/amazon-api-blocked-products.csv

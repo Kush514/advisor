@@ -54,3 +54,13 @@ jobs:
           AMAZON_CREATORS_PARTNER_TAG: ${{ secrets.AMAZON_CREATORS_PARTNER_TAG }}
           AMAZON_CREATORS_ENDPOINT: ${{ secrets.AMAZON_CREATORS_ENDPOINT }}
           YOUTUBE_SYNC_START_DATE: '2024-10-01'
+
+      # Download from the run page (Summary -> Artifacts): products hidden because Amazon's API won't share them
+      - name: Upload review list
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: amazon-api-blocked-products
+          path: apps/api/amazon-api-blocked-products.csv
+          if-no-files-found: ignore
+          retention-days: 14
